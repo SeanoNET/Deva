@@ -1,0 +1,86 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all packages
+        run: pnpm turbo build
+
+      - name: Deploy Web App
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          cd apps/web
+          # Install Vercel CLI
+          pnpm add -g vercel
+          # Deploy to production
+          vercel --prod --token $VERCEL_TOKEN --confirm
+
+      - name: Publish CLI Package
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd apps/cli
+          # Configure npm registry
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
+          # Publish if version changed
+          if [ "$(npm view @deva/cli version)" != "$(node -p "require('./package.json').version")" ]; then
+            npm publish
+          else
+            echo "Version unchanged, skipping publish"
+          fi
+
+      - name: Create Release
+        if: success()
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.PACKAGE_VERSION }}
+          release_name: Release v${{ env.PACKAGE_VERSION }}
+          body: |
+            ## What's Changed
+            - Web app deployed to production
+            - CLI published to npm
+            
+            ## Installation
+            ```bash
+            npm install -g @deva/cli
+            ```
+          draft: false
+          prerelease: false
