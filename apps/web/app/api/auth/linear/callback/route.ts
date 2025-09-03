@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSessionFromRequest } from '@/lib/session';
+import { LinearClient } from '@linear/sdk';
 
 const LINEAR_TOKEN_URL = 'https://api.linear.app/oauth/token';
 
@@ -40,17 +42,22 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
     
-    // Store token in a secure cookie
+    // Get user info from Linear
+    const linearClient = new LinearClient({ accessToken: data.access_token });
+    const viewer = await linearClient.viewer;
+    
+    // Create response with redirect
     const redirectResponse = NextResponse.redirect(
       new URL('/?auth=success', request.url)
     );
     
-    redirectResponse.cookies.set('linear_token', data.access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-    });
+    // Get the session and store encrypted data
+    const session = await getSessionFromRequest(request, redirectResponse);
+    session.linearToken = data.access_token;
+    session.userId = viewer.id;
+    session.userEmail = viewer.email;
+    session.isLoggedIn = true;
+    await session.save();
 
     return redirectResponse;
   } catch (error) {

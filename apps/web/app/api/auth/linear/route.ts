@@ -1,15 +1,19 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getSession } from '@/lib/session';
 
 const LINEAR_OAUTH_URL = 'https://linear.app/oauth/authorize';
 
-export async function GET(request: Request) {
-  console.log('Linear OAuth route called');
+export async function GET(request: NextRequest) {
+  // Check if user is already authenticated
+  const session = await getSession();
   
+  if (session.isLoggedIn && session.linearToken) {
+    // Already authenticated, redirect to home
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+
   const clientId = process.env.LINEAR_CLIENT_ID;
   const redirectUri = process.env.NEXT_PUBLIC_LINEAR_REDIRECT_URI;
-  
-  console.log('Client ID:', clientId ? 'Set' : 'Not set');
-  console.log('Redirect URI:', redirectUri);
   
   if (!clientId || !redirectUri || clientId === 'your_linear_client_id') {
     console.log('Linear OAuth not configured properly');

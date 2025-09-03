@@ -73,3 +73,87 @@ export interface UserCorrection {
   correctedValue: any;
   timestamp: number;
 }
+
+// Enhanced UX Types for Phase 1 Implementation
+
+// AI Reasoning and Transparency
+export interface AIReasoningData {
+  workTypeReasoning: {
+    detected: WorkType;
+    confidence: number;
+    reasoning: string;
+    alternatives: { type: WorkType; confidence: number }[];
+  };
+  priorityReasoning: {
+    detected: Priority;
+    confidence: number;
+    reasoning: string;
+    factors: string[];
+  };
+  labelReasoning: {
+    suggested: string[];
+    confidence: number;
+    reasoning: string;
+    sources: string[];
+  };
+  questionsReasoning: {
+    questions: string[];
+    reasoning: string;
+    confidenceImpact: number;
+  };
+}
+
+// Confidence Metrics with Explanations
+export interface ConfidenceMetrics {
+  overall: number;
+  breakdown: {
+    workType: number;
+    priority: number;
+    title: number;
+    description: number;
+    labels: number;
+  };
+  factors: {
+    positive: string[];
+    negative: string[];
+  };
+  improvementSuggestions: string[];
+}
+
+// Real-time Editing Support
+export interface EditableField {
+  value: any;
+  isEditing: boolean;
+  hasChanges: boolean;
+  originalValue: any;
+  validationError?: string;
+}
+
+export interface EditableIssueData {
+  title: EditableField;
+  description: EditableField;
+  workType: EditableField;
+  priority: EditableField;
+  labels: EditableField;
+  confidence: number;
+  reasoning?: AIReasoningData;
+  metrics?: ConfidenceMetrics;
+}
+
+// UX Flow Control
+export type CreationMode = 'quick-fix' | 'collaborative' | 'power-user';
+
+export interface UXFlowState {
+  mode: CreationMode;
+  currentStep: number;
+  totalSteps: number;
+  canProceed: boolean;
+  requiresReview: boolean;
+}
+
+// Enhanced Message with UX Features
+export interface EnhancedMessage extends Message {
+  reasoning?: AIReasoningData;
+  editableIssue?: EditableIssueData;
+  uxFlow?: UXFlowState;
+}
